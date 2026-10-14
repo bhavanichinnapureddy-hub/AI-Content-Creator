@@ -1,11 +1,5 @@
 # 🌐 CreatorSphere AI — AI Content Creator Marketplace
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Render-00796B?style=for-the-badge&logo=render)](https://ai-content-creator-7ypk.onrender.com)
-[![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/bhavanichinnapureddy-hub/AI-Content-Creator)
-[![React](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-8.3-646CFF?style=for-the-badge&logo=vite)](https://vitejs.dev/)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4.0-06B6D4?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
-
 > **CreatorSphere AI** is a role-separated creator discovery and collaboration marketplace connecting verified brands with creators across 26+ industry categories. Featuring AI Studio tools, full analytics dashboards, portfolio showcases, secure order workflows, and instant notifications.
 
 ---
