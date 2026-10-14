@@ -1,0 +1,554 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  BRAND
+  CREATOR
+  ADMIN
+}
+
+enum Specialization {
+  AI_FILMMAKER
+  AI_ANIMATOR
+  GENERATIVE_DESIGNER
+  AI_VIDEO_EDITOR
+  PROMPT_ENGINEER
+  AI_CHARACTER_DESIGNER
+  AI_AD_CREATOR
+  AI_EXPLAINER_CREATOR
+  AI_MUSIC_VIDEO_CREATOR
+}
+
+enum ContentType {
+  AD
+  SHORT_FILM
+  ANIMATION
+  PRODUCT_VIDEO
+  CHARACTER_DESIGN
+  EXPLAINER
+  SOCIAL_CONTENT
+  MUSIC_VIDEO
+  PRODUCT_DEMO
+}
+
+enum AspectRatio {
+  RATIO_9_16
+  RATIO_16_9
+  RATIO_1_1
+  RATIO_4_5
+  RATIO_4_3
+}
+
+enum BriefStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  CANCELLED
+}
+
+enum EngagementStatus {
+  INVITED
+  APPLIED
+  SHORTLISTED
+  ACCEPTED
+  IN_PROGRESS
+  DRAFT_SUBMITTED
+  REVISION_REQUESTED
+  FINAL_SUBMITTED
+  APPROVED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  FUNDED
+  IN_ESCROW
+  RELEASED
+  REFUNDED
+  CANCELLED
+  FAILED
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VerificationType {
+  TOOL_PROFICIENCY
+  WORKFLOW_AUTHENTICITY
+  PAST_CLIENT_WORK
+  IDENTITY
+}
+
+enum NotificationType {
+  BRIEF_PUBLISHED
+  APPLICATION_RECEIVED
+  APPLICATION_ACCEPTED
+  APPLICATION_REJECTED
+  ENGAGEMENT_CREATED
+  DRAFT_SUBMITTED
+  REVISION_REQUESTED
+  FINAL_SUBMITTED
+  DELIVERY_APPROVED
+  PAYMENT_RELEASED
+  VERIFICATION_APPROVED
+  VERIFICATION_REJECTED
+  NEW_MESSAGE
+  DEADLINE_REMINDER
+}
+
+enum ScheduledPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  YOUTUBE
+  TIKTOK
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  role           UserRole
+  isActive       Boolean  @default(true)
+  isEmailVerified Boolean @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  creatorProfile    CreatorProfile?
+  brandProfile      BrandProfile?
+  sentMessages      Message[]            @relation("MessageSender")
+  notifications     Notification[]
+  passwordResets    PasswordReset[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]           @relation("AuditSubject")
+  adminAuditLogs    AuditLog[]           @relation("AuditAdmin")
+  scheduledPosts    ScheduledPost[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// ─── Refresh Token ────────────────────────────────────────────────────────────
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // Stored as hash, never raw
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isRevoked Boolean  @default(false)
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+// ─── Password Reset ───────────────────────────────────────────────────────────
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // Stored as hash
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─── Creator Profile ──────────────────────────────────────────────────────────
+
+model CreatorProfile {
+  id               String         @id @default(cuid())
+  userId           String         @unique
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName      String
+  avatarUrl        String?
+  headline         String         @db.VarChar(160)
+  bio              String         @db.Text
+  specialization   Specialization
+  skills           String[]
+  aiTools          String[]       // e.g., ["Runway ML", "Midjourney", "ComfyUI"]
+  workflowDesc     String?        @db.Text
+  location         String?
+  languages        String[]
+  availability     Boolean        @default(true)
+  priceRangeMin    Int?           // USD per project
+  priceRangeMax    Int?
+  experienceLevel  String?        // Junior, Mid, Senior, Expert
+  responseTimeDays Int?
+  externalUrl      String?
+  isVerified       Boolean        @default(false)
+  verifiedTool     Boolean        @default(false)
+  verifiedWorkflow Boolean        @default(false)
+  verifiedPastWork Boolean        @default(false)
+  completionRate   Int            @default(100) // percentage
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Relations
+  portfolioItems      PortfolioItem[]
+  applications        Application[]
+  engagements         Engagement[]
+  reviews             Review[]
+  verificationRequests VerificationRequest[]
+  wallet              Wallet?
+
+  @@index([specialization])
+  @@index([availability])
+  @@index([isVerified])
+  @@index([priceRangeMin, priceRangeMax])
+}
+
+// ─── Brand Profile ────────────────────────────────────────────────────────────
+
+model BrandProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName String
+  logoUrl     String?
+  website     String?
+  industry    String?
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  briefs   Brief[]
+  wallet   Wallet?
+  reviews  Review[]
+
+  @@index([companyName])
+}
+
+// ─── Portfolio Item ───────────────────────────────────────────────────────────
+
+model PortfolioItem {
+  id                String         @id @default(cuid())
+  creatorProfileId  String
+  creatorProfile    CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  title             String         @db.VarChar(120)
+  description       String?        @db.Text
+  thumbnailUrl      String?
+  mediaUrl          String?        // Video or image URL
+  contentType       ContentType
+  aiToolsUsed       String[]
+  workflowSteps     Json?          // [{step: "Ideation", desc: "..."}, ...]
+  aspectRatio       AspectRatio?
+  durationSeconds   Int?
+  isCommercialUse   Boolean        @default(false)
+  tags              String[]
+  externalProofUrl  String?
+  verifiedTool      Boolean        @default(false)
+  verifiedWorkflow  Boolean        @default(false)
+  verifiedPastWork  Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([creatorProfileId])
+  @@index([contentType])
+  @@index([isCommercialUse])
+}
+
+// ─── Brief ────────────────────────────────────────────────────────────────────
+
+model Brief {
+  id                     String      @id @default(cuid())
+  brandProfileId         String
+  brandProfile           BrandProfile @relation(fields: [brandProfileId], references: [id], onDelete: Cascade)
+  title                  String      @db.VarChar(200)
+  campaignGoal           String      @db.Text
+  contentType            ContentType
+  creativeStyle          String?
+  aspectRatio            AspectRatio?
+  durationSeconds        Int?
+  deliverableCount       Int         @default(1)
+  budgetMin              Int?
+  budgetMax              Int?
+  deadline               DateTime?
+  targetAudience         String?     @db.Text
+  language               String?
+  referenceLinks         String[]
+  brandAssetUrls         String[]
+  description            String?     @db.Text
+  dos                    String[]
+  donts                  String[]
+  commercialUseType      String?
+  aiDisclosureRequired   Boolean     @default(false)
+  requiredFormats        String[]
+  requiredSkills         String[]
+  requiredTools          String[]
+  status                 BriefStatus @default(DRAFT)
+  isAiGenerated          Boolean     @default(false) // Was it AI-assisted?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+
+  // Relations
+  applications Application[]
+  engagements  Engagement[]
+
+  @@index([status])
+  @@index([contentType])
+  @@index([deadline])
+}
+
+// ─── Application ──────────────────────────────────────────────────────────────
+
+model Application {
+  id               String           @id @default(cuid())
+  briefId          String
+  brief            Brief            @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  creatorProfileId String
+  creatorProfile   CreatorProfile   @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  coverLetter      String?          @db.Text
+  proposedBudget   Int?
+  proposedTimeline Int?             // days
+  status           EngagementStatus @default(APPLIED)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([briefId, creatorProfileId]) // One application per creator per brief
+  @@index([briefId])
+  @@index([creatorProfileId])
+}
+
+// ─── Engagement ───────────────────────────────────────────────────────────────
+
+model Engagement {
+  id               String           @id @default(cuid())
+  briefId          String
+  brief            Brief            @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  creatorProfileId String
+  creatorProfile   CreatorProfile   @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  status           EngagementStatus @default(ACCEPTED)
+  agreedBudget     Int?
+  deadline         DateTime?
+  revisionCount    Int              @default(0)
+  maxRevisions     Int              @default(3)
+  licenseRecord    Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  messages  Message[]
+  files     EngagementFile[]
+  payment   Payment?
+  review    Review?
+
+  @@index([briefId])
+  @@index([creatorProfileId])
+  @@index([status])
+}
+
+// ─── Message ──────────────────────────────────────────────────────────────────
+
+model Message {
+  id           String     @id @default(cuid())
+  engagementId String
+  engagement   Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  senderId     String
+  sender       User       @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content      String     @db.Text
+  isRead       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
+  @@index([engagementId])
+  @@index([senderId])
+}
+
+// ─── Engagement File ──────────────────────────────────────────────────────────
+
+model EngagementFile {
+  id             String     @id @default(cuid())
+  engagementId   String
+  engagement     Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  uploaderId     String
+  filename       String
+  originalName   String
+  mimeType       String
+  fileSize       Int        // bytes
+  fileUrl        String
+  version        Int        @default(1)
+  isDraft        Boolean    @default(false)
+  isFinal        Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+
+  @@index([engagementId])
+  @@index([uploaderId])
+}
+
+// ─── Payment ──────────────────────────────────────────────────────────────────
+
+model Payment {
+  id             String        @id @default(cuid())
+  engagementId   String        @unique
+  engagement     Engagement    @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  amount         Int           // In cents
+  status         PaymentStatus @default(PENDING)
+  demoMethod     String        @default("Demo Card •••• 4242")
+  escrowAt       DateTime?
+  releasedAt     DateTime?
+  refundedAt     DateTime?
+  invoiceNumber  String        @unique @default(cuid())
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Wallet transactions
+  transactions WalletTransaction[]
+
+  @@index([status])
+}
+
+// ─── Wallet ───────────────────────────────────────────────────────────────────
+
+model Wallet {
+  id               String         @id @default(cuid())
+  userId           String?        @unique
+  creatorProfileId String?        @unique
+  brandProfileId   String?        @unique
+  creatorProfile   CreatorProfile? @relation(fields: [creatorProfileId], references: [id])
+  brandProfile     BrandProfile?  @relation(fields: [brandProfileId], references: [id])
+  balance          Int            @default(0) // In cents — DEMO ONLY
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  transactions WalletTransaction[]
+}
+
+// ─── Wallet Transaction ───────────────────────────────────────────────────────
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  walletId    String
+  wallet      Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  paymentId   String?
+  payment     Payment? @relation(fields: [paymentId], references: [id])
+  amount      Int      // Positive = credit, negative = debit (in cents)
+  type        String   // DEPOSIT, WITHDRAWAL, ESCROW, RELEASE, REFUND
+  description String
+  balanceAfter Int
+  createdAt   DateTime @default(now())
+
+  @@index([walletId])
+}
+
+// ─── Review ───────────────────────────────────────────────────────────────────
+
+model Review {
+  id               String         @id @default(cuid())
+  engagementId     String         @unique
+  engagement       Engagement     @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  brandProfileId   String
+  brandProfile     BrandProfile   @relation(fields: [brandProfileId], references: [id], onDelete: Cascade)
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  rating           Int            // 1-5
+  comment          String?        @db.Text
+  createdAt        DateTime       @default(now())
+
+  @@index([creatorProfileId])
+  @@index([brandProfileId])
+}
+
+// ─── Verification Request ─────────────────────────────────────────────────────
+
+model VerificationRequest {
+  id               String             @id @default(cuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile     @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  type             VerificationType
+  status           VerificationStatus @default(PENDING)
+  proofUrl         String?
+  proofDescription String?            @db.Text
+  adminNote        String?
+  reviewedAt       DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([creatorProfileId])
+  @@index([status])
+}
+
+// ─── Notification ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  linkUrl   String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  admin      User     @relation("AuditAdmin", fields: [adminId], references: [id])
+  subjectId  String?
+  subject    User?    @relation("AuditSubject", fields: [subjectId], references: [id])
+  action     String
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId])
+  @@index([subjectId])
+  @@index([createdAt])
+}
+
+// ─── Scheduled Post ───────────────────────────────────────────────────────────
+
+model ScheduledPost {
+  id           String              @id @default(cuid())
+  userId       String
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform     SocialPlatform
+  caption      String?             @db.Text
+  hashtags     String[]
+  mediaUrl     String?
+  scheduledAt  DateTime
+  publishedAt  DateTime?
+  status       ScheduledPostStatus @default(DRAFT)
+  errorMessage String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+}
