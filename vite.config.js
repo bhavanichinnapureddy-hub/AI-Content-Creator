@@ -119,6 +119,13 @@ function passwordResetEmailPlugin(env) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
+    preview: {
+      host: '0.0.0.0',
+      allowedHosts: true,
+    },
+    server: {
+      allowedHosts: true,
+    },
     plugins: [
       react(),
       tailwindcss(),
